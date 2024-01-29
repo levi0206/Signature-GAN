@@ -1,6 +1,6 @@
 import torch
 
-# The common variables of different GANs
+# The common variables of GANs
 class Base:
     def __init__(self, config, G, test_metrics_train, test_metrics_test):
 
