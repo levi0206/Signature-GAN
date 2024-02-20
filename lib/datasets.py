@@ -8,7 +8,7 @@ import tqdm
 
 import torch
 import numpy as np
-from lib.utils import sample_indices
+from lib.utils import sample_indices, load_obj, save_obj
 
 def train_test_split(
         x: torch.Tensor,
@@ -32,8 +32,68 @@ def download_stock_price(
         interval: str = '1mo',
 ):
     dataframe = yf.download(ticker, start=start, end=end, interval=interval)
-    dataframe.to_csv(f"./datasets/stock prices/{ticker}_{interval}.csv")
-    return
+    file_name = ticker+"_"+interval
+    dataframe.to_csv(file_name+".csv")
+    return dataframe
+
+def rolling_window(x: torch.Tensor, window_size: int):
+    '''
+    See https://se.mathworks.com/help/econ/rolling-window-estimation-of-state-space-models.html
+    '''
+    print("Tensor shape before rolling:",x.shape)
+    windowed_data = []
+    for t in range(x.shape[0] - window_size + 1):
+        window = x[t:t + window_size, :]
+        windowed_data.append(window)
+    return torch.stack(windowed_data, dim=0)
+
+def transfer_percentage(x):
+    '''
+    Calculate the percentage change of each element in the sequence relative to its starting value, 
+    ignoring sequences that start with a zero value.
+    '''
+    start = x[:, 0 :1, :]
+
+    # remove zero start
+    idx_ = torch.nonzero(start == 0, as_tuple=False).tolist()
+    if idx_:
+        idx_ = idx_[0]
+    idx_ = list(set(list(range(x.shape[0]))) - set(idx_))
+
+    new_x = x[idx_, ...]
+    new_start = start[idx_, ...]
+
+    new_x = (new_x - new_start) / new_start
+    return new_x
+
+def get_stock_price(data_config):
+    """
+    Get stock price
+    Returns
+    -------
+    dataset: torch.Tensor
+        torch.tensor of shape (#data, window_size, 1|2)
+    """
+    csv_file_name = data_config['ticker']+"_"+data_config['interval']+".csv"
+    pt_file_name = data_config['ticker']+"_"+data_config['interval']+"_rolled.pt"
+    csv_file_path = os.path.join(data_config['dir'], data_config['subdir'], csv_file_name) 
+    pt_file_path = os.path.join(data_config['dir'], data_config['subdir'], pt_file_name)
+    if os.path.exists(pt_file_path):
+        dataset = load_obj(pt_file_path)
+        print(f'Rolled data for training, shape {dataset.shape}')
+        
+    else:
+        df = pd.read_csv(csv_file_path)
+        print(f'Preprocess data: {os.path.basename(csv_file_name)}, shape {df.shape}')
+        dataset = df[df.columns[data_config['column']]].to_numpy(dtype='float')
+        dataset = torch.FloatTensor(dataset).unsqueeze(dim=1)
+        print(dataset.shape)
+        dataset = rolling_window(dataset, data_config['window_size'])
+        dataset = transfer_percentage(dataset)
+
+        print(f'Rolled data for training, shape {dataset.shape}')
+        save_obj(dataset, pt_file_path)
+    return dataset
 
 def get_rBergomi_paths(hurst=0.25, size=2200, n_lags=100, maturity=1, xi=0.5, eta=0.5):
     r"""
@@ -88,6 +148,9 @@ def get_rBergomi_paths(hurst=0.25, size=2200, n_lags=100, maturity=1, xi=0.5, et
     return dataset
 
 def get_gbm(size, n_lags, d=1, drift=0., scale=0.1, h=1):
+    '''
+    See Wiki: https://en.wikipedia.org/wiki/Geometric_Brownian_motion#Simulating_sample_paths
+    '''
     x_real = torch.ones(size, n_lags, d)
     x_real[:, 1:, :] = torch.exp(
     (drift - scale ** 2 / 2) * h + (scale * np.sqrt(h) * torch.randn(size, n_lags - 1, d)))
