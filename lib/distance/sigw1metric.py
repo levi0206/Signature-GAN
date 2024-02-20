@@ -57,14 +57,7 @@ class SigW1Metric:
         Equation (4) in 2111.01207
         """
         device = x_path_nu.device
-        batch_size = x_path_nu.shape[0]
-        # expected_signature_nu1 = compute_expected_signature(x_path_nu[:batch_size//2], self.depth, self.augmentations)
-        # expected_signature_nu2 = compute_expected_signature(x_path_nu[batch_size//2:], self.depth, self.augmentations)
-        # y = self.expected_signature_mu.to(device)
-        # loss = (expected_signature_nu1-y)*(expected_signature_nu2-y)
-        # loss = loss.sum()
         expected_signature_nu = compute_expected_signature(x_path_nu, self.depth, self.augmentations, self.normalise)
         loss = rmse(self.expected_signature_mu.to(device), expected_signature_nu)
-        # loss = masked_rmse(self.expected_signature_mu.to(
-        #    device), expected_signature_nu, self.mask_rate, device)
+        
         return loss
