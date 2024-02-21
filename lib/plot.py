@@ -11,13 +11,13 @@ from lib.utils import to_numpy
 def plot_signature(sig):
     plt.plot(to_numpy(sig).T, 'o')
 
-# def plot_signature(signature_tensor, alpha=0.2):
-#     plt.plot(to_numpy(signature_tensor).T, alpha=alpha, linestyle='None', marker='o')
-#     plt.grid()
+def plot_signature(signature_tensor, alpha=0.2):
+    plt.plot(to_numpy(signature_tensor).T, alpha=alpha, linestyle='None', marker='o')
+    # plt.grid()
 
 
 def plot_test_metrics(test_metrics, losses_history, mode):
-    fig, axes = plt.subplots(len(test_metrics), 1, figsize=(20, 16))
+    fig, axes = plt.subplots(len(test_metrics), 1, figsize=(10, 8), squeeze=False)
     for i, test_metric in enumerate(test_metrics):
         name = test_metric.name
         loss = losses_history[name + '_' + mode]
@@ -25,12 +25,12 @@ def plot_test_metrics(test_metrics, losses_history, mode):
             loss = np.concatenate(loss, 1).T
         except:
             loss = np.array(loss)
-        axes[i].plot(loss, label=name)
-        axes[i].grid()
-        axes[i].legend()
-        axes[i].set_ylim(bottom=0.)
+        axes[i,0].plot(loss, label=name)
+        axes[i,0].grid()
+        axes[i,0].legend()
+        axes[i,0].set_ylim(bottom=0.)
         if i == len(test_metrics):
-            axes[i].set_xlabel('Number of generator weight updates')
+            axes[i,0].set_xlabel('Number of generator weight updates')
 
 
 def set_style(ax):
