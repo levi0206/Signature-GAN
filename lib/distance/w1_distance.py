@@ -9,20 +9,19 @@ class W1_distance():
     '''
     WGAN-GP loss function
     '''
-    def __init__(self, x_real, x_fake, critic_hidden_dim=[20,20], coeff=100, lr=0.001):
+    def __init__(self, D, x_real, x_fake, lambda_reg=100):
 
         self.dimension = x_real.shape[2] # path dimension
         self.length = x_real.shape[1] # path length
 
-        # Generators
+        # Real and fake data
         self.dataset1 = x_real
         self.dataset2 = x_fake
+
+        self.critic = D
         
         # Regularization coefficient
-        self.coeff = coeff
-
-    def get_w1_distance(self, batch_size):
-        indices = sample_indices(self.dataset1.shape[0], batch_size)
+        self.lambda_reg = lambda_reg
 
     @abstractmethod
     def _input_dim(self):
@@ -42,22 +41,18 @@ class W1_distance():
             Tensor of shape (batch_size, d')
         """
         ...
-    
-    def to_device(self, device):
-        self.C.to(device)
 
     def get_dist(self, batch_size) -> torch.Tensor:
         device = self.dataset1.device
-        self.critic_optimizer.zero_grad()
 
         # Sample paths
-        indices = sample_indices(self.dataset1.shape[0], batch_size).to(device)
+        indices = sample_indices(self.dataset1.shape[0], batch_size, device=device)
         x_fake = self.dataset1[indices] # (batch_size, length, dimension)
         x_real = self.dataset2[indices] # (batch_size, length, dimension)
 
         # W1 distance: E[D(x_fake)]-E[D(x_real)]
         x_real = self._get_input(x_real) 
-        critic_x_real = self.critic(x_real) # (batch_size,probability)
+        critic_x_real = self.critic(x_real) # (batch_size, probability)
         x_fake = self._get_input(x_fake)
         critic_x_fake = self.critic(x_fake) # (batch_size, probability)
         W1_distance = critic_x_fake.mean() - critic_x_real.mean() 
@@ -71,7 +66,7 @@ class W1_distance():
                 retain_graph=True,
                 create_graph=True,
                 only_inputs=True)[0]
-        gradient_penalty = self.coeff*torch.mean((torch.norm(gradient, p=2, dim=1)-1)**2)
+        gradient_penalty = self.lambda_reg*torch.mean((torch.norm(gradient, p=2, dim=1)-1)**2)
         loss = W1_distance + gradient_penalty
         return loss
     
@@ -99,11 +94,11 @@ class W1_dist_PathSpace(W1_distance):
 
 class W1_dist_SigSpace(W1_distance):
 
-    def __init__(self, dataset1, dataset2, critic_hidden_sizes, lambda_reg=100, lr=0.001, depth=3, augmentations=(LeadLag(with_time=True),)):
+    def __init__(self, dataset1, dataset2, lambda_reg=100, depth=3, augmentations=(LeadLag(with_time=True),)):
         
         self.augmentations = augmentations
         self.depth = depth
-        super().__init__(dataset1, dataset2, critic_hidden_sizes,lambda_reg,lr)
+        super().__init__(dataset1, dataset2,lambda_reg)
     
     def _input_dim(self):
         channels = self.d
