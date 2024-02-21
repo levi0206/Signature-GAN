@@ -53,6 +53,7 @@ class LSTMGenerator(GeneratorBase):
         self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers, batch_first=True)
         self.linear = nn.Linear(hidden_dim, output_dim, bias=False)
         self.linear.apply(init_weights)
+        self.init_fixed = init_fixed
 
     def forward(self, batch_size: int, n_lags: int, device: str) -> torch.Tensor:
         z = (0.1 * torch.randn(batch_size, n_lags, self.input_dim)).to(device)
@@ -138,7 +139,7 @@ def compute_multilevel_logsignature(brownian_path: torch.Tensor, time_brownian: 
     return multi_level_log_sig, u_logsigrnn
 
 class LogSigRNNGenerator(GeneratorBase):
-    def __init__(self, input_dim, output_dim, n_lags, augmentations, depth, hidden_dim, n_layers, len_noise=1000,
+    def __init__(self, input_dim, output_dim, window_size, augmentations, depth, hidden_dim, n_layers, len_noise=1000,
                  len_interval_u=50, init_fixed: bool = True):
 
         super(LogSigRNNGenerator, self).__init__(input_dim, output_dim)
@@ -177,12 +178,12 @@ class LogSigRNNGenerator(GeneratorBase):
         self.initial_nn.apply(init_weights)
         self.init_fixed = init_fixed
 
-    def forward(self, batch_size: int, n_lags: int, device: str, ):
-        time_t = torch.linspace(0, 1, n_lags).to(device)
+    def forward(self, batch_size: int, window_size: int, device: str, ):
+        time_t = torch.linspace(0, 1, window_size).to(device)
         # time_t: torch.Size([72]) = [n_lags]
         # time_brownian: torch.Size([1000]) = [gen_config.len_noise]
 
-        # z: torch.Size([1024, 1000, 5]) = [batch_size, gen_config.len_noise, gen_config.input_dim]
+        # z: torch.Size([1024, 1000, 5])
         z = torch.randn(batch_size, self.len_noise, self.input_dim, device=device)
         
         # h is the time step of the Brownian motion. All cell values same
@@ -193,11 +194,9 @@ class LogSigRNNGenerator(GeneratorBase):
         z[:, 1:, :] *= torch.sqrt(h)
         z[:, 0, :] *= 0  # first point is fixed
 
-        # brownian_path: torch.Size([1024, 1000, 5]) = [batch_size, gen_config.len_noise, gen_config.input_dim]
         brownian_path = z.cumsum(1)
         # brownian_path = z
 
-        # y: torch.Size([1024, 1000, 5+1]) with "AddTime"
         y = apply_augmentations(brownian_path, self.augmentations)
         y_logsig, u_logsigrnn = compute_multilevel_logsignature(brownian_path=y,
                                                                 time_brownian=self.time_brownian.to(device),
@@ -219,7 +218,7 @@ class LogSigRNNGenerator(GeneratorBase):
             h0 = self.initial_nn(z0)
 
         last_h = h0
-        x = torch.zeros(batch_size, n_lags, self.output_dim, device=device)
+        x = torch.zeros(batch_size, window_size, self.output_dim, device=device)
         for idx, (t, y_logsig_) in enumerate(zip(time_t, y_logsig)):
             h = self.rnn(torch.cat([last_h, y_logsig_], -1))
             if t >= u_logsigrnn[0]:
@@ -227,5 +226,5 @@ class LogSigRNNGenerator(GeneratorBase):
                 last_h = h  # this is why the yellow hidden nodes have periodically in my depiction
             x[:, idx, :] = self.linear(h)
 
-        assert x.shape[1] == n_lags
+        assert x.shape[1] == window_size
         return x
