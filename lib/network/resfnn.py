@@ -5,7 +5,8 @@ class ResidualBlock(nn.Module):
     def __init__(self, input_dim: int, output_dim: int):
         super(ResidualBlock, self).__init__()
         self.create_residual_connection = True if input_dim == output_dim else False
-        self.activation = nn.ReLU()  
+        self.activation = nn.ReLU() 
+        self.linear = nn.Linear(input_dim, output_dim) 
 
     def forward(self, x):
         y = self.activation(self.linear(x))
