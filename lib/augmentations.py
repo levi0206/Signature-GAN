@@ -76,3 +76,12 @@ def apply_augmentations(x: torch.Tensor, augmentations: Tuple) -> torch.Tensor:
     return y
 
 AUGMENTATIONS = {'AddTime': AddTime, 'LeadLag': LeadLag} 
+
+def parse_augmentations(list_of_dicts):
+    augmentations = list()
+    for kwargs in list_of_dicts:
+        name = kwargs.pop('name')
+        augmentations.append(
+            AUGMENTATIONS[name](**kwargs)
+        )
+    return augmentations
