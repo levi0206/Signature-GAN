@@ -14,26 +14,6 @@ def init_weights(m):
     if isinstance(m, nn.Linear):
         nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-# Probably no use
-class FeedForwardNN(nn.Module):
-    """Same as ResidualNN but with PReLU"""
-    def __init__(self, input_dim: int, output_dim: int, hidden_dims: Tuple[int]):
-        super().__init__()
-        blocks = []
-        block_input_dim = input_dim
-        for hidden_dim in hidden_dims:
-            blocks.append(nn.Linear(block_input_dim, hidden_dim))
-            blocks.append(nn.PReLU())
-            block_input_dim = hidden_dim
-        blocks.append(nn.Linear(block_input_dim, output_dim))
-        self.network = nn.Sequential(*blocks)
-        self.output_dim = output_dim
-
-    def forward(self, *args):
-        x = torch.cat(args, -1)
-        out = self.network(x)
-        return out
-
 class GeneratorBase(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(GeneratorBase, self).__init__()
@@ -116,30 +96,29 @@ def compute_multilevel_logsignature(brownian_path: torch.Tensor, time_brownian: 
         multi_level_log_sig.append(signatory.logsignature(interval, depth=depth, basepoint=True))
     multi_level_log_sig = [torch.zeros_like(multi_level_log_sig[0])] + multi_level_log_sig
 
-    # logsig_channels = signatory.logsignature_channels(in_channels = brownian_path.shape[-1], depth=depth)
-
-    # multi_level_log_sig = [] #torch.zeros(brownian_path.shape[0], len(time_t), logsig_channels)
-
-    # u_logsigrnn = []
-    # last_u = -1
-    # for ind_t, t in enumerate(time_t):
-    #    u = time_u[time_u <= t].max()
-    #    ind_low = torch.nonzero((time_brownian<=u).float(), as_tuple=False).max() 
-    #    if u != last_u:
-    #        u_logsigrnn.append(u)
-    #        last_u = u
-
-    #    ind_max = torch.nonzero((time_brownian<=t).float(), as_tuple=False).max() 
-    #    interval = brownian_path[:, ind_low:ind_max+1, :]
-    #    #if t == 0:
-    #    multi_level_log_sig.append(signatory.logsignature(interval, depth=depth, basepoint=True))
-    #    #else:
-    #    #    multi_level_log_sig[:,ind_t] = signatory.logsignature(interval, depth=depth)
-
     return multi_level_log_sig, u_logsigrnn
 
+class FeedForwardNN(nn.Module):
+    """Same as ResidualNN but with PReLU"""
+    def __init__(self, input_dim: int, output_dim: int, hidden_dims: Tuple[int]):
+        super().__init__()
+        blocks = []
+        block_input_dim = input_dim
+        for hidden_dim in hidden_dims:
+            blocks.append(nn.Linear(block_input_dim, hidden_dim))
+            blocks.append(nn.PReLU())
+            block_input_dim = hidden_dim
+        blocks.append(nn.Linear(block_input_dim, output_dim))
+        self.network = nn.Sequential(*blocks)
+        self.output_dim = output_dim
+
+    def forward(self, *args):
+        x = torch.cat(args, -1)
+        out = self.network(x)
+        return out
+    
 class LogSigRNNGenerator(GeneratorBase):
-    def __init__(self, input_dim, output_dim, window_size, augmentations, depth, hidden_dim, n_layers, len_noise=1000,
+    def __init__(self, input_dim, output_dim, augmentations, depth, hidden_dim, len_noise=1000,
                  len_interval_u=50, init_fixed: bool = True):
 
         super(LogSigRNNGenerator, self).__init__(input_dim, output_dim)
@@ -156,7 +135,7 @@ class LogSigRNNGenerator(GeneratorBase):
         self.time_brownian = torch.linspace(0, 1,
                                             self.len_noise)  # len_noise is high enough so that we can consider this as a continuous brownian motion
         self.time_u = self.time_brownian[::len_interval_u]  # ([0.0000, 0.0501, 0.1001, 0.1502, 0.2002, 0.2503, 0.3003, 0.3504, 0.4004, 0.4505, 0.5005, 0.5506, 0.6006, 0.6507, 0.7007, 0.7508, 0.8008, 0.8509, 0.9009, 0.9510])
-        # self.time_t = torch.linspace(0,1,n_lags)
+        # self.time_t = torch.linspace(0,1,window_size)
 
         # definition of LSTM + linear at the end
         self.rnn = nn.Sequential(
@@ -216,7 +195,6 @@ class LogSigRNNGenerator(GeneratorBase):
         else:
             z0 = torch.randn(batch_size, self.input_dim, device=device)
             h0 = self.initial_nn(z0)
-
         last_h = h0
         x = torch.zeros(batch_size, window_size, self.output_dim, device=device)
         for idx, (t, y_logsig_) in enumerate(zip(time_t, y_logsig)):

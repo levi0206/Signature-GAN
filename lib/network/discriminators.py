@@ -12,7 +12,7 @@ class LSTMDiscriminator(nn.Module):
         self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers)
         self.linear = nn.Linear(hidden_dim, 1)
 
-    def forward(self, x):
+    def forward(self, x) -> torch.Tensor:
         h = self.lstm(x)[0][:, -1:]
         x = self.linear(h)
         return x
