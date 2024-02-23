@@ -27,13 +27,16 @@ def train_test_split(
 
 def download_stock_price(
         ticker : str,
-        start : str = '2000-01-01',
+        start : str = '2018-01-01',
         end : str = '2023-12-31',
-        interval: str = '1mo',
-):
+        interval: str = '1d',
+):  
+    '''
+    If you want to download other stock data, please do it before execute your code.
+    '''
     dataframe = yf.download(ticker, start=start, end=end, interval=interval)
-    file_name = ticker+"_"+interval
-    dataframe.to_csv(file_name+".csv")
+    file_name = ticker+"_"+interval+".csv"
+    dataframe.to_csv(file_name)
     return dataframe
 
 def rolling_window(x: torch.Tensor, window_size: int):
@@ -72,19 +75,23 @@ def get_stock_price(data_config):
     Returns
     -------
     dataset: torch.Tensor
-        torch.tensor of shape (#data, window_size, 1|2)
+        torch.tensor of shape (#data, window_size, 1)
     """
     csv_file_name = data_config['ticker']+"_"+data_config['interval']+".csv"
     pt_file_name = data_config['ticker']+"_"+data_config['interval']+"_rolled.pt"
     csv_file_path = os.path.join(data_config['dir'], data_config['subdir'], csv_file_name) 
     pt_file_path = os.path.join(data_config['dir'], data_config['subdir'], pt_file_name)
+
+    if not os.path.exists(csv_file_name):
+        _ = download_stock_price(ticker=data_config['ticker'],interval=data_config['interval'])
+
     if os.path.exists(pt_file_path):
         dataset = load_obj(pt_file_path)
         print(f'Rolled data for training, shape {dataset.shape}')
         
     else:
         df = pd.read_csv(csv_file_path)
-        print(f'Preprocess data: {os.path.basename(csv_file_name)}, shape {df.shape}')
+        print(f'Original data: {os.path.basename(csv_file_name)}, shape {df.shape}')
         dataset = df[df.columns[data_config['column']]].to_numpy(dtype='float')
         dataset = torch.FloatTensor(dataset).unsqueeze(dim=1)
         print(dataset.shape)
