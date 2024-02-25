@@ -123,7 +123,7 @@ class LogSigRNNGenerator(GeneratorBase):
 
         super(LogSigRNNGenerator, self).__init__(input_dim, output_dim)
         input_dim_rnn = get_number_of_channels_after_augmentations(input_dim, augmentations)
-        print("input_dim_rnn:{}".format(input_dim_rnn))
+        print("LogSigRNN input dim: {}".format(input_dim_rnn))
 
         logsig_channels = signatory.logsignature_channels(in_channels=input_dim_rnn, depth=depth)
 
@@ -172,8 +172,10 @@ class LogSigRNNGenerator(GeneratorBase):
 
         brownian_path = z.cumsum(1)
         # brownian_path = z
-
-        y = apply_augmentations(brownian_path, self.augmentations)
+        if self.augmentations is not None:
+            y = apply_augmentations(brownian_path, self.augmentations)
+        else:
+            y = brownian_path
         y_logsig, u_logsigrnn = compute_multilevel_logsignature(brownian_path=y,
                                                                 time_brownian=self.time_brownian.to(device),
                                                                 time_u=self.time_u.to(device), time_t=time_t.to(device),
