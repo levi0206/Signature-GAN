@@ -8,14 +8,6 @@ from lib.test_metrics import *
 from lib.utils import to_numpy
 
 
-def plot_signature(sig):
-    plt.plot(to_numpy(sig).T, 'o')
-
-def plot_signature(signature_tensor, alpha=0.2):
-    plt.plot(to_numpy(signature_tensor).T, alpha=alpha, linestyle='None', marker='o')
-    # plt.grid()
-
-
 def plot_test_metrics(test_metrics, losses_history, mode):
     fig, axes = plt.subplots(len(test_metrics), 1, figsize=(10, 8), squeeze=False)
     for i, test_metric in enumerate(test_metrics):
