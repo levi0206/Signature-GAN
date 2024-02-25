@@ -1,12 +1,11 @@
-import numpy as np
 import torch
 from torch import autograd, nn
 from tqdm import tqdm
-from typing import Tuple
+from collections import defaultdict
 
-from lib.model.base import Base
 from lib.utils import sample_indices
 from lib.augmentations import apply_augmentations
+from lib.utils import to_numpy
 
 def set_requires_grad(model, requires_grad):
     for p in model.parameters():
@@ -46,6 +45,8 @@ class WGAN(nn.Module):
 
         self.test_metrics_train = test_metrics_train
         self.test_metrics_test = test_metrics_test
+
+        self.device = kwargs['device']
         
     def fit(self, device):
         self.G.to(device)
@@ -61,7 +62,7 @@ class WGAN(nn.Module):
         
         for i in range(self.discriminator_steps_per_generator_step):
             # Generate x_fake
-            indices = sample_indices(self.x_real.shape[0], self.batch_size, wgan_config['device'])
+            indices = sample_indices(self.x_real.shape[0], self.batch_size, self.device)
             x_real_batch = self.x_real[indices].to(device)
 
             with torch.no_grad():
@@ -102,14 +103,12 @@ class WGAN(nn.Module):
         self.D.train()
         self.D_optimizer.zero_grad()
 
-        # Change here
         x_real.requires_grad_()
         x_fake.requires_grad_()
 
         D_real = self.D(x_real)
         D_loss_real = D_real.mean()
 
-        # On fake data
         x_fake.requires_grad_()
         batch_size = x_real.size(0)
         eps = torch.rand(batch_size, device=x_real.device).view(batch_size, 1, 1)
@@ -118,7 +117,7 @@ class WGAN(nn.Module):
         D_loss_fake = D_fake.mean()
 
         with torch.backends.cudnn.flags(enabled=False):
-            # WAN-GP: gradient penalty
+            # Gradient penalty
             gp = self.lambda_reg * self.gradient_penalty(x_real, x_fake, eps)
             
         total_loss = D_loss_fake - D_loss_real + gp
