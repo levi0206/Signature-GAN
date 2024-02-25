@@ -1,0 +1,8 @@
+{
+    "ticker" : "^GSPC",
+    "interval" : "1d",
+    "column" : 0,  
+    "window_size" : 30,
+    "dir" : "datasets",
+    "subdir" : "stock"
+}
