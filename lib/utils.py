@@ -1,5 +1,4 @@
 import json
-import os
 import pickle
 from datetime import datetime, timedelta
 import tqdm
@@ -7,20 +6,6 @@ import tqdm
 import torch
 import numpy as np
 import random
-
-### Copy, no use
-def get_config_path(config_type, name):
-    return os.path.join('configs', config_type, name + '.json')
-
-
-def get_sigwgan_experiment_dir(dataset, generator, gan, seed):
-    return './numerical_results/{dataset}/{gan}_{generator}_{seed}'.format(
-        dataset=dataset, gan=gan, generator=generator, seed=seed)
-
-def get_experiment_dir(dataset, generator, discriminator, gan, seed):
-    return './numerical_results/{dataset}/{gan}_{generator}_{discriminator}_{seed}'.format(
-        dataset=dataset, gan=gan, generator=generator, discriminator=discriminator, seed=seed)
-###
 
 def sample_indices(dataset_size, batch_size, device):
     '''
