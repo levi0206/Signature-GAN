@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch import autograd
+from torch import autograd, nn
 from tqdm import tqdm
 from typing import Tuple
 
@@ -8,160 +8,163 @@ from lib.model.base import Base
 from lib.utils import sample_indices
 from lib.augmentations import apply_augmentations
 
-
-def toggle_grad(model, requires_grad):
+def set_requires_grad(model, requires_grad):
     for p in model.parameters():
         p.requires_grad_(requires_grad)
 
-
-def compute_grad2(d_out, x_in):
-    batch_size = x_in.size(0)
-    grad_dout = autograd.grad(
-        outputs=d_out.sum(), inputs=x_in,
-        create_graph=True, retain_graph=True, only_inputs=True
-    )[0]
-    grad_dout2 = grad_dout.pow(2)
-    assert (grad_dout2.size() == x_in.size())
-    reg = grad_dout2.view(batch_size, -1).sum(1)
-    return reg
-
-
-class WGANTrainer(Base):
-    def __init__(self, D, G, discriminator_steps_per_generator_step,
-                 lr_discriminator, lr_generator, x_real: torch.Tensor, reg_param=10.,
-                 **kwargs):
+class WGAN(nn.Module):
+    def __init__(self, D, G, batch_size, epoch, discriminator_steps_per_generator_step, lr_discriminator, test_metrics_train, test_metrics_test, 
+                 lr_generator, x_real: torch.Tensor, lambda_reg=10., **kwargs):
         if kwargs.get('augmentations') is not None:
             self.augmentations = kwargs['augmentations']
             del kwargs['augmentations']
         else:
             self.augmentations = None
-        super(WGANTrainer, self).__init__(
-            G=G,
-            G_optimizer=torch.optim.Adam(G.parameters(), lr=lr_generator, betas=(0, 0.9)),
-            **kwargs
-        )
-        self.D_steps_per_G_step = discriminator_steps_per_generator_step
-        self.D = D
-        self.D_optimizer = torch.optim.Adam(D.parameters(), lr=lr_discriminator, betas=(0, 0.9))  # Using TTUR
+        super(WGAN, self).__init__()
 
-        self.reg_param = reg_param
+        self.D = D
+        self.G = G
+        self.G_optimizer = torch.optim.Adam(G.parameters(), lr=lr_generator, betas=(0, 0.9))
+        self.D_optimizer = torch.optim.Adam(D.parameters(), lr=lr_discriminator, betas=(0, 0.9))
+        
+        self.batch_size = batch_size
+        self.epoch = epoch
+        self.discriminator_steps_per_generator_step = discriminator_steps_per_generator_step
+        self.lr_discriminator = lr_discriminator
+        self.lr_generator = lr_generator
+        
+        print("augmentations: {}".format(self.augmentations))
         if self.augmentations is not None:
             self.x_real = apply_augmentations(x_real, self.augmentations)
+            print("x_real shape: {}".format(self.x_real.shape))
         else:
             self.x_real = x_real
 
+        self.lambda_reg = lambda_reg
+        self.losses_history = defaultdict(list)
+        self.best_cov_err = None
+
+        self.test_metrics_train = test_metrics_train
+        self.test_metrics_test = test_metrics_test
+        
     def fit(self, device):
         self.G.to(device)
         self.D.to(device)
-        pbar = tqdm(range(self.n_gradient_steps))
-        for _ in pbar:
+        pbar = tqdm(range(self.epoch))
+        for i in pbar:
             self.step(device)
             pbar.set_description(
-                "G_loss {:1.6e} D_loss {:1.6e} WGAN_GP {:1.6e}".format(self.losses_history['G_loss'][-1],
-                                                                       self.losses_history['D_loss'][-1],
-                                                                       self.losses_history['WGAN_GP'][-1]))
+                "G_loss {:1.6e} D_loss {:1.6e}".format(self.losses_history['G_loss'][-1],
+                                                                       self.losses_history['D_loss'][-1],))
 
     def step(self, device):
-        for i in range(self.D_steps_per_G_step):
-            # generate x_fake
-            indices = sample_indices(self.x_real.shape[0], self.batch_size)
+        
+        for i in range(self.discriminator_steps_per_generator_step):
+            # Generate x_fake
+            indices = sample_indices(self.x_real.shape[0], self.batch_size, wgan_config['device'])
             x_real_batch = self.x_real[indices].to(device)
-            # torch.no_grad() is a context-manager that disabled gradient calculation for wrapped code.
+
             with torch.no_grad():
-                x_fake = self.G(batch_size=self.batch_size, n_lags=self.x_real.shape[1], device=device)
+                x_fake = self.G(batch_size=self.batch_size, window_size=self.x_real.shape[1], device=device)
                 if self.augmentations is not None:
                     x_fake = apply_augmentations(x_fake, self.augmentations)
 
-            D_loss_real, D_loss_fake, wgan_gp = self.D_trainstep(x_fake, x_real_batch)
+            D_loss = self.D_train(x_fake, x_real_batch)
             if i == 0:
-                self.losses_history['D_loss_fake'].append(D_loss_fake)
-                self.losses_history['D_loss_real'].append(D_loss_real)
-                self.losses_history['D_loss'].append(D_loss_fake - D_loss_real + wgan_gp)
-                self.losses_history['WGAN_GP'].append(wgan_gp)
-        G_loss = self.G_trainstep(device)
+                self.losses_history['D_loss'].append(D_loss)
+        G_loss = self.G_train(device)
         self.losses_history['G_loss'].append(G_loss)
 
-    def G_trainstep(self, device):
-        toggle_grad(self.G, True)
+    def G_train(self, device):
 
-        x_fake = self.G(batch_size=self.batch_size, n_lags=self.x_real.shape[1], device=device)
+        set_requires_grad(self.G, True)
+
+        x_fake = self.G(batch_size=self.batch_size, window_size=self.x_real.shape[1], device=device)
         if self.augmentations is not None:
             x_fake = apply_augmentations(x_fake, self.augmentations)
 
         self.G.train()
         self.G_optimizer.zero_grad()
-        d_fake = self.D(x_fake)
+        D_fake = self.D(x_fake)
         self.D.train()
-        # G_loss = self.compute_loss(d_fake, 1)
-        G_loss = -d_fake.mean()
+        G_loss = -D_fake.mean()
         G_loss.backward()
         self.G_optimizer.step()
         self.evaluate(x_fake)
 
-        toggle_grad(self.G, False)
-        # return G_loss.item()
+        set_requires_grad(self.G, False)
         return G_loss.item()
 
-    def D_trainstep(self, x_fake, x_real):
-        # https://github.com/SigCGANs/Sig-Wasserstein-GANs/blob/main/lib/trainers/wgan.py
-        toggle_grad(self.D, True)
+    def D_train(self, x_fake, x_real):
+
+        set_requires_grad(self.D, True)
 
         self.D.train()
         self.D_optimizer.zero_grad()
 
-        # On real data
+        # Change here
         x_real.requires_grad_()
-        d_real = self.D(x_real)
-        # dloss_real = self.compute_loss(d_real, 1)
-        dloss_real = d_real.mean()
+        x_fake.requires_grad_()
 
-        # print(dloss_real)
+        D_real = self.D(x_real)
+        D_loss_real = D_real.mean()
 
         # On fake data
         x_fake.requires_grad_()
         batch_size = x_real.size(0)
         eps = torch.rand(batch_size, device=x_real.device).view(batch_size, 1, 1)
         x_interpolate = (1 - eps) * x_fake + eps * x_real
-        d_fake = self.D(x_interpolate)
-        # dloss_fake = self.compute_loss(d_fake, 0)
-        dloss_fake = d_fake.mean()
+        D_fake = self.D(x_interpolate)
+        D_loss_fake = D_fake.mean()
 
-        # Compute regularizer on fake / real
-        # dloss = dloss_fake + dloss_real
         with torch.backends.cudnn.flags(enabled=False):
             # WAN-GP: gradient penalty
-            gradient_penalty = self.reg_param * self.wgan_gp_reg(x_real, x_fake, eps)
+            gp = self.lambda_reg * self.gradient_penalty(x_real, x_fake, eps)
             
-        # total_loss = dloss + wgan_gp
-        total_loss = dloss_fake - dloss_real + gradient_penalty
+        total_loss = D_loss_fake - D_loss_real + gp
         total_loss.backward()
 
-        # Step discriminator params
         self.D_optimizer.step()
 
-        # Toggle gradient to False
-        toggle_grad(self.D, False)
-
-        return dloss_real.item(), dloss_fake.item(), gradient_penalty.item()
-
-    def compute_loss(self, d_out, target):
+        # Set gradient to False
+        set_requires_grad(self.D, False)
+        return total_loss.item()
+    
+    def gradient_penalty(self, x_real, x_fake, eps):
         '''
-        d_out: real-valued vector / Output from discriminator \n
-        target: scalar / 0 or 1
+        "Improved Training of Wasserstein GANs"
+        https://arxiv.org/abs/1704.00028        
         '''
-        targets = d_out.new_full(size=d_out.size(), fill_value=target)
-        return (2. * target - 1.) * d_out.mean()
-
-    def wgan_gp_reg(self, x_real, x_fake, eps, center=1.):
-        '''
-        Gradient Penalty \n
-        https://arxiv.org/abs/2005.09165 Brock et al. [7] 
-        '''
-        # sampling algorithms: (1 − 𝛼)𝑥 + 𝛼𝑥̂
         x_interpolate = (1 - eps) * x_fake + eps * x_real
         x_interpolate = x_interpolate.detach()
         x_interpolate.requires_grad_() # W
-        d_out = self.D(x_interpolate)
-        # || W^T * W - I ||_2
-        reg = (compute_grad2(d_out, x_interpolate).sqrt() - center).pow(2).mean()
-        return reg
+        prob_interpolate = self.D(x_interpolate)
+        
+        gradients = autograd.grad(outputs=prob_interpolate.sum(), inputs=x_interpolate,
+                               create_graph=True, retain_graph=True, only_inputs=True)[0]
+        assert gradients.shape == x_real.shape
+        # print("gradient shape: {}".format(gradients.shape))
+        
+        gradients = gradients.view(x_fake.shape[0], -1)
+
+        gradients_norm = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradients_norm
+
+    def evaluate(self, x_fake):
+        # print("x_fake shape: {}".format(x_fake.shape))
+        with torch.no_grad():
+            for test_metric in self.test_metrics_train:
+                test_metric(x_fake)
+                loss = to_numpy(test_metric.loss_componentwise)
+                if len(loss.shape) == 1:
+                    loss = loss[..., None]
+                self.losses_history[test_metric.name + '_train'].append(loss)
+            for test_metric in self.test_metrics_test:
+                test_metric(x_fake)
+                loss = to_numpy(test_metric.loss_componentwise)
+                if len(loss.shape) == 1:
+                    loss = loss[..., None]
+                self.losses_history[test_metric.name + '_test'].append(loss)
+        self.best_cov_err = self.losses_history['covariance_test'][-1].item() if self.best_cov_err == None else self.best_cov_err
+        if self.losses_history['covariance_test'][-1].item() < self.best_cov_err:
+            self.best_cov_err = self.losses_history['covariance_test'][-1].item()
