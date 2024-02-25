@@ -31,7 +31,7 @@ def set_style(ax):
     ax.spines['bottom'].set_visible(False)
 
 
-def compare_hists(x_real, x_fake, ax=None, log=False, label=None):
+def compare_hists(x_real, x_fake, trainer: str, G: str, ax=None, log=False, label=None):
     """ Computes histograms and plots those. """
     if ax is None:
         _, ax = plt.subplots(1, 1)
@@ -46,6 +46,8 @@ def compare_hists(x_real, x_fake, ax=None, log=False, label=None):
     ax.grid()
     set_style(ax)
     ax.legend()
+    title = trainer+"+"+G
+    ax.set_title(title)
     if log:
         ax.set_ylabel('log-pdf')
         ax.set_yscale('log')
@@ -54,7 +56,7 @@ def compare_hists(x_real, x_fake, ax=None, log=False, label=None):
     return ax
 
 
-def plot_hists_marginals(x_real, x_fake):
+def plot_hists_marginals(x_real, x_fake, trainer: str, G: str):
     n_hists = 10
     n_lags = x_real.shape[1]
     len_interval = n_lags // n_hists
@@ -62,7 +64,7 @@ def plot_hists_marginals(x_real, x_fake):
 
     for i in range(n_hists):
         ax = fig.add_subplot(2, 5, i + 1)
-        compare_hists(to_numpy(x_real[:, i * len_interval, 0]), to_numpy(x_fake[:, i * len_interval, 0]), ax=ax)
+        compare_hists(to_numpy(x_real[:, i * len_interval, 0]), to_numpy(x_fake[:, i * len_interval, 0]), ax=ax, trainer=trainer, G=G)
         ax.set_title("Step {}".format(i * len_interval))
     return fig
 
@@ -101,7 +103,7 @@ def compare_acf(x_real, x_fake, ax=None, max_lag=64, CI=True, dim=(0, 1), drop_f
     return ax
 
 
-def plot_summary(x_fake, x_real, max_lag=None, labels=None):
+def plot_summary(x_fake, x_real, trainer: str, G: str, max_lag=None, labels=None):
     if max_lag is None:
         max_lag = min(128, x_fake.shape[1])
 
@@ -115,7 +117,7 @@ def plot_summary(x_fake, x_real, max_lag=None, labels=None):
         x_real_i = x_real[..., i:i + 1]
         x_fake_i = x_fake[..., i:i + 1]
 
-        compare_hists(x_real=to_numpy(x_real_i), x_fake=to_numpy(x_fake_i), ax=axes[i, 0])
+        compare_hists(x_real=to_numpy(x_real_i), x_fake=to_numpy(x_fake_i), ax=axes[i, 0], trainer=trainer, G=G)
 
         def text_box(x, height, title):
             textstr = '\n'.join((
@@ -136,7 +138,7 @@ def plot_summary(x_fake, x_real, max_lag=None, labels=None):
         text_box(x_real_i, 0.95, 'Historical')
         text_box(x_fake_i, 0.70, 'Generated')
 
-        compare_hists(x_real=to_numpy(x_real_i), x_fake=to_numpy(x_fake_i), ax=axes[i, 1], log=True)
+        compare_hists(x_real=to_numpy(x_real_i), x_fake=to_numpy(x_fake_i), ax=axes[i, 1], log=True, trainer=trainer, G=G)
         compare_acf(x_real=x_real_i, x_fake=x_fake_i, ax=axes[i, 2], max_lag=max_lag, CI=False, dim=(0, 1))
 
 
