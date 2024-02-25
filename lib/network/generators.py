@@ -13,30 +13,20 @@ def init_weights(m):
     '''
     if isinstance(m, nn.Linear):
         nn.init.xavier_uniform_(m.weight.data, gain=nn.init.calculate_gain('relu'))
-
-class GeneratorBase(nn.Module):
-    def __init__(self, input_dim, output_dim):
-        super(GeneratorBase, self).__init__()
-        """ Generator base class. All generators should be children of this class. """
+    
+class LSTMGenerator(nn.Module):
+    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int, n_layers: int, init_fixed: bool = True):
+        super(LSTMGenerator, self).__init__()
+        # LSTM
         self.input_dim = input_dim
         self.output_dim = output_dim
-
-    def forward(self, batch_size: int, n_lags: int, device: str):
-        x = self.forward_(batch_size, n_lags, device)
-        x = self.pipeline.inverse_transform(x)
-        return x
-    
-class LSTMGenerator(GeneratorBase):
-    def __init__(self, input_dim: int, output_dim: int, hidden_dim: int, n_layers: int, init_fixed: bool = True):
-        super(LSTMGenerator, self).__init__(input_dim, output_dim)
-        # LSTM
         self.lstm = nn.LSTM(input_size=input_dim, hidden_size=hidden_dim, num_layers=n_layers, batch_first=True)
         self.linear = nn.Linear(hidden_dim, output_dim, bias=False)
         self.linear.apply(init_weights)
         self.init_fixed = init_fixed
 
-    def forward(self, batch_size: int, n_lags: int, device: str) -> torch.Tensor:
-        z = (0.1 * torch.randn(batch_size, n_lags, self.input_dim)).to(device)
+    def forward(self, batch_size: int, window_size: int, device: str) -> torch.Tensor:
+        z = (0.1 * torch.randn(batch_size, window_size, self.input_dim)).to(device)
         z[:, 0, :] *= 0  
         z = z.cumsum(1) 
 
@@ -51,7 +41,7 @@ class LSTMGenerator(GeneratorBase):
         h1, _ = self.lstm(z, (h0, c0))
         x = self.linear(h1)
 
-        assert x.shape[1] == n_lags
+        assert x.shape[1] == window_size
         return x
     
 def compute_multilevel_logsignature(brownian_path: torch.Tensor, time_brownian: torch.Tensor, time_u: torch.Tensor,
@@ -117,11 +107,11 @@ class FeedForwardNN(nn.Module):
         out = self.network(x)
         return out
     
-class LogSigRNNGenerator(GeneratorBase):
+class LogSigRNNGenerator(nn.Module):
     def __init__(self, input_dim, output_dim, augmentations, depth, hidden_dim, len_noise=1000,
                  len_interval_u=50, init_fixed: bool = True):
 
-        super(LogSigRNNGenerator, self).__init__(input_dim, output_dim)
+        super(LogSigRNNGenerator, self).__init__()
         input_dim_rnn = get_number_of_channels_after_augmentations(input_dim, augmentations)
         print("LogSigRNN input dim: {}".format(input_dim_rnn))
 
