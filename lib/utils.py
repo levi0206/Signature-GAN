@@ -34,7 +34,7 @@ def sample_indices(dataset_size, batch_size, device):
     
     return indices.long()
 
-def to_numpy(x):
+def to_numpy(x: torch.Tensor):
     return x.detach().cpu().numpy()
 
 def set_seed(seed: int):
