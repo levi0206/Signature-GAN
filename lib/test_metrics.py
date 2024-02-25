@@ -330,12 +330,12 @@ def get_standard_test_metrics(x: torch.Tensor, augmentations: Tuple = ()):
         # test_metrics['abs_metric'](x),
         # test_metrics['acf_id'](x, max_lag=2),
         # test_metrics['acf_id_rtn'](x, max_lag=2),
-        # test_metrics['skew'](x),
-        # test_metrics['kurtosis'](x),
-        # test_metrics['skew_rtn'](x),
-        # test_metrics['kurtosis_rtn'](x),
-        # test_metrics['covariance'](x, reg=1),
-        # test_metrics['covariance_rtn'](x, reg=1),
+        test_metrics['skew'](x),
+        test_metrics['kurtosis'](x),
+        test_metrics['skew_rtn'](x),
+        test_metrics['kurtosis_rtn'](x),
+        test_metrics['covariance'](x, reg=1),
+        test_metrics['covariance_rtn'](x, reg=1),
 
         # Original: test_metrics['sig_w1'](x)
         # Omit augmentations
