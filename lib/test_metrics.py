@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Tuple
+from typing import Tuple, Optional
 
 from lib.utils import to_numpy
 from lib.distance.sigw1metric import SigW1Metric
@@ -324,7 +324,7 @@ def is_multivariate(x: torch.Tensor):
     return True if x.shape[-1] > 1 else False
 
 
-def get_standard_test_metrics(x: torch.Tensor, ):
+def get_standard_test_metrics(x: torch.Tensor, augmentations: Tuple = ()):
     """ Initialise list of standard test metrics for evaluating the goodness of the generator. """
     test_metrics_list = [
         # test_metrics['abs_metric'](x),
@@ -336,7 +336,10 @@ def get_standard_test_metrics(x: torch.Tensor, ):
         # test_metrics['kurtosis_rtn'](x),
         # test_metrics['covariance'](x, reg=1),
         # test_metrics['covariance_rtn'](x, reg=1),
-        test_metrics['sig_w1'](x)
+
+        # Original: test_metrics['sig_w1'](x)
+        # Omit augmentations
+        partial(SigW1Loss, name='sig_w1', augmentations=augmentations, normalise=False, mask_rate=0.01, depth=4)(x)
     ]
     if is_multivariate(x):
         test_metrics_list.append(test_metrics['cross_correl'](x))
