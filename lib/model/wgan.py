@@ -12,7 +12,7 @@ def set_requires_grad(model, requires_grad):
         p.requires_grad_(requires_grad)
 
 class WGAN(nn.Module):
-    def __init__(self, D, G, batch_size, epoch, discriminator_steps_per_generator_step, lr_discriminator, test_metrics_train, test_metrics_test, 
+    def __init__(self, D, G, batch_size, epoch, discriminator_steps_per_generator_step, lr_discriminator, test_metrics_test, 
                  lr_generator, x_real: torch.Tensor, lambda_reg=10., **kwargs):
         if kwargs.get('augmentations') is not None:
             self.augmentations = kwargs['augmentations']
@@ -43,7 +43,6 @@ class WGAN(nn.Module):
         self.losses_history = defaultdict(list)
         self.best_cov_err = None
 
-        self.test_metrics_train = test_metrics_train
         self.test_metrics_test = test_metrics_test
 
         self.device = kwargs['device']
@@ -152,12 +151,6 @@ class WGAN(nn.Module):
     def evaluate(self, x_fake):
         # print("x_fake shape: {}".format(x_fake.shape))
         with torch.no_grad():
-            for test_metric in self.test_metrics_train:
-                test_metric(x_fake)
-                loss = to_numpy(test_metric.loss_componentwise)
-                if len(loss.shape) == 1:
-                    loss = loss[..., None]
-                self.losses_history[test_metric.name + '_train'].append(loss)
             for test_metric in self.test_metrics_test:
                 test_metric(x_fake)
                 loss = to_numpy(test_metric.loss_componentwise)

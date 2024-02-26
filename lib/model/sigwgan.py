@@ -8,7 +8,7 @@ from lib.utils import to_numpy
 
 class SigWGAN(nn.Module): 
     def __init__(self, D, G, lr_generator, lr_discriminator, epoch, batch_size, depth, x_real_rolled, augmentations, 
-                 test_metrics_train, test_metrics_test, normalise_sig: bool = True, mask_rate=0.01,
+                test_metrics_test, normalise_sig: bool = True, mask_rate=0.01,
                  **kwargs):
         super(SigWGAN, self).__init__()
         self.sig_w1_metric = SigW1Metric(depth=depth, x_real=x_real_rolled, augmentations=augmentations,
@@ -22,7 +22,7 @@ class SigWGAN(nn.Module):
         self.batch_size = batch_size
         self.depth = depth
         self.augmentations = augmentations
-        self.test_metrics_train = test_metrics_train
+
         self.test_metrics_test = test_metrics_test
 
         self.G_optimizer = torch.optim.Adam(self.G.parameters(), lr=self.lr_generator)
@@ -52,12 +52,6 @@ class SigWGAN(nn.Module):
 
     def evaluate(self, x_fake):
         with torch.no_grad():
-            for test_metric in self.test_metrics_train:
-                test_metric(x_fake)
-                loss = to_numpy(test_metric.loss_componentwise)
-                if len(loss.shape) == 1:
-                    loss = loss[..., None]
-                self.losses_history[test_metric.name + '_train'].append(loss)
             for test_metric in self.test_metrics_test:
                 test_metric(x_fake)
                 loss = to_numpy(test_metric.loss_componentwise)
