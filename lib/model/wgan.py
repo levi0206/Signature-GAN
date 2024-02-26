@@ -157,6 +157,3 @@ class WGAN(nn.Module):
                 if len(loss.shape) == 1:
                     loss = loss[..., None]
                 self.losses_history[test_metric.name + '_test'].append(loss)
-        self.best_cov_err = self.losses_history['covariance_test'][-1].item() if self.best_cov_err == None else self.best_cov_err
-        if self.losses_history['covariance_test'][-1].item() < self.best_cov_err:
-            self.best_cov_err = self.losses_history['covariance_test'][-1].item()
