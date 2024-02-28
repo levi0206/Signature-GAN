@@ -1,0 +1,12 @@
+{
+    "batch_size" :1024,
+    "epoch" : 1500,   
+    "lr_generator" : 1e-3,
+    "lr_discriminator" : 1e-3,
+    "augmentations": [
+        {"name":  "AddTime"},
+        {"name":  "LeadLag"}
+    ],
+    "device" : "cuda:0",
+    "depth" : 4
+}

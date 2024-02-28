@@ -1,0 +1,11 @@
+{
+    "batch_size" :1024,
+    "epoch" : 2500,  
+    "lr_generator" : 1e-3,
+    "lr_discriminator" : 3e-3,
+    "discriminator_steps_per_generator_step" : 5,
+    "augmentations": [
+        {"name":  "AddTime"}
+    ],
+    "device" : "cuda" 
+}
