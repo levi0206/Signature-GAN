@@ -1,0 +1,12 @@
+{
+    "generator_type": "LogSigRNN",
+    "hidden_dim": 50,
+    "augmentations": [
+        {"name":  "AddTime"}
+    ],
+    "depth": 2,
+    "input_dim": 10,
+    "len_noise": 1000,
+    "len_interval_u": 50,
+    "init_fixed": true
+}
