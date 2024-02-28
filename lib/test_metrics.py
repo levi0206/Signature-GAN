@@ -330,18 +330,18 @@ def get_standard_test_metrics(x: torch.Tensor, augmentations: Tuple = ()):
         # test_metrics['abs_metric'](x),
         # test_metrics['acf_id'](x, max_lag=2),
         # test_metrics['acf_id_rtn'](x, max_lag=2),
-        test_metrics['skew'](x),
-        test_metrics['kurtosis'](x),
-        test_metrics['skew_rtn'](x),
-        test_metrics['kurtosis_rtn'](x),
-        test_metrics['covariance'](x, reg=1),
-        test_metrics['covariance_rtn'](x, reg=1),
+        # test_metrics['skew'](x),
+        # test_metrics['kurtosis'](x),
+        # test_metrics['skew_rtn'](x),
+        # test_metrics['kurtosis_rtn'](x),
+        # test_metrics['covariance'](x, reg=1),
+        # test_metrics['covariance_rtn'](x, reg=1),
 
         # Original: test_metrics['sig_w1'](x)
         # Omit augmentations
         partial(SigW1Loss, name='sig_w1', augmentations=augmentations, normalise=False, mask_rate=0.01, depth=4)(x)
     ]
-    if is_multivariate(x):
-        test_metrics_list.append(test_metrics['cross_correl'](x))
-        test_metrics_list.append(test_metrics['cross_correl_rtn'](x))
+    # if is_multivariate(x):
+    #     test_metrics_list.append(test_metrics['cross_correl'](x))
+    #     test_metrics_list.append(test_metrics['cross_correl_rtn'](x))
     return test_metrics_list
