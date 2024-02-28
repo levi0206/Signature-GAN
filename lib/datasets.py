@@ -140,13 +140,12 @@ def get_rBergomi_paths(hurst=0.25, size=2200, n_lags=100, maturity=1, xi=0.5, et
     dataset = np.zeros((size, n_lags, 2))
 
     for j in tqdm(range(size), total=size):
-        # we generate v process
+        
         m = MBM(n=n_lags-1, hurst=lambda t: hurst, length=maturity, method='riemannliouville')
         fbm = m.mbm() # fractional Brownian motion
         times = m.times()
         V = xi * np.exp(eta * fbm - 0.5 * eta**2 * times**(2*hurst))
 
-        # we generate price process
         h = times[1:] - times[:-1] # time increments
         brownian_increments = np.random.randn(h.shape[0]) * np.sqrt(h)
 
