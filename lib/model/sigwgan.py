@@ -44,7 +44,7 @@ class SigWGAN(nn.Module):
             loss.backward()
             best_loss = loss.item() if j == 0 else best_loss
 
-            pbar.set_description("sig-w1 loss: {:1.6e}".format(loss.item()))
+            pbar.set_description("sig-w1 loss: {:.4f}".format(loss.item()))
             self.G_optimizer.step()
             self.scheduler.step()
             self.losses_history['sig_w1_loss'].append(loss.item())
