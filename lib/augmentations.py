@@ -75,6 +75,10 @@ def apply_augmentations(x: torch.Tensor, augmentations: Tuple) -> torch.Tensor:
         y = augmentation.apply(y)
     return y
 
+def augment_path_and_compute_signatures(x: torch.Tensor, config: dict) -> torch.Tensor:
+    y = apply_augmentations(x, config["augmentations"])
+    return signatory.signature(y, config["depth"], basepoint=False)
+
 AUGMENTATIONS = {'AddTime': AddTime, 'LeadLag': LeadLag} 
 
 def parse_augmentations(list_of_dicts):
