@@ -36,7 +36,9 @@ def download_stock_price(
     '''
     dataframe = yf.download(ticker, start=start, end=end, interval=interval)
     file_name = ticker+"_"+interval+".csv"
-    dataframe.to_csv(file_name)
+    csv_file_file = os.path.join("datasets", "stock", file_name) 
+    if not os.path.exists(csv_file_file):
+        dataframe.to_csv(file_name)
     return dataframe
 
 def rolling_window(x: torch.Tensor, window_size: int):
