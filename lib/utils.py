@@ -6,6 +6,8 @@ import tqdm
 import torch
 import numpy as np
 import random
+from lib.augmentations import augment_path_and_compute_signatures
+from sklearn.linear_model import LinearRegression
 
 def sample_indices(dataset_size, batch_size, device):
     '''
@@ -30,30 +32,18 @@ def set_seed(seed: int):
     random.seed(seed)
     np.random.seed(seed)
 
-def save_obj(obj: object, filepath: str):
-    '''
-    Save an object.
-    '''
-    if filepath.endswith('pkl'):
-        saver = pickle.dump
-    elif filepath.endswith('pt'):
-        saver = torch.save
-    elif filepath.endswith('json'):
-        with open(filepath, 'w') as f:
-            json.dump(obj, f, indent=4)
-        return 0
-    else:
-        raise NotImplementedError()
-
-    with open(filepath, 'wb') as f:
-        saver(obj, f)
-    return 0
-
+def regression_on_linear_functional(x_future, x_past, sig_config):
+    sig_future = augment_path_and_compute_signatures(x_future,sig_config["depth"])
+    sig_past = augment_path_and_compute_signatures(x_past,sig_config["depth"])
+    linear_functional = LinearRegression()
+    linear_functional.fit(to_numpy(sig_past),to_numpy(sig_future))
+    return linear_functional
+    
+def predict(linear_functional, sig_past: torch.Tensor):
+    return torch.from_numpy(linear_functional.predict(sig_past)).float().to(sig_past.device)
 
 def load_obj(filepath):
-    '''
-    Load an object.
-    '''
+    """ Generic function to load an object. """
     if filepath.endswith('pkl'):
         loader = pickle.load
     elif filepath.endswith('pt'):
@@ -65,7 +55,21 @@ def load_obj(filepath):
         raise NotImplementedError()
     with open(filepath, 'rb') as f:
         return loader(f)
-    
+
+def save_obj(obj: object, filepath: str):
+    """ Generic function to save an object with different methods. """
+
+    if filepath.endswith('pkl'):
+        saver = pickle.dump
+    elif filepath.endswith('pt'):
+        saver = torch.save
+    elif filepath.endswith('json'):
+        with open(filepath, 'w') as f:
+            json.dump(obj, f, indent=4)
+        return 0
+    else:
+        raise NotImplementedError()
+
 # Probably no need    
 def rolling_period_resample(dataset, period, n_lags):
     period_dict = {
