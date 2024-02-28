@@ -32,10 +32,10 @@ class WGAN(nn.Module):
         self.lr_discriminator = lr_discriminator
         self.lr_generator = lr_generator
         
-        print("augmentations: {}".format(self.augmentations))
+        # print("augmentations: {}".format(self.augmentations))
         if self.augmentations is not None:
             self.x_real = apply_augmentations(x_real, self.augmentations)
-            print("x_real shape: {}".format(self.x_real.shape))
+            # print("x_real shape: {}".format(self.x_real.shape))
         else:
             self.x_real = x_real
 
@@ -54,7 +54,7 @@ class WGAN(nn.Module):
         for i in pbar:
             self.step(device)
             pbar.set_description(
-                "G_loss {:1.6e} D_loss {:1.6e}".format(self.losses_history['G_loss'][-1],
+                "G_loss {:.4f} D_loss {:.4f}".format(self.losses_history['G_loss'][-1],
                                                                        self.losses_history['D_loss'][-1],))
 
     def step(self, device):
@@ -82,7 +82,7 @@ class WGAN(nn.Module):
         x_fake = self.G(batch_size=self.batch_size, window_size=self.x_real.shape[1], device=device)
         if self.augmentations is not None:
             x_fake = apply_augmentations(x_fake, self.augmentations)
-
+            # print("x_fake shape: {}".format(x_fake.shape))
         self.G.train()
         self.G_optimizer.zero_grad()
         D_fake = self.D(x_fake)
@@ -105,6 +105,7 @@ class WGAN(nn.Module):
         x_real.requires_grad_()
         x_fake.requires_grad_()
 
+        # print("x_real shape: {}".format(x_real.shape))
         D_real = self.D(x_real)
         D_loss_real = D_real.mean()
 
