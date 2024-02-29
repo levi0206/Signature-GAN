@@ -13,4 +13,4 @@ Datasets:
 - S\&P 500
 
 ## Update Log
-- 29/Feb/2024: Rewrite get_gbm in lib/dataset.py. The numerical results in GBM.ipynb should be slightly different if you rerun the notebook because of randomness.
+- 2024-02-29: Rewrite get_gbm in lib/dataset.py. The numerical results in GBM.ipynb should be slightly different if you rerun the notebook because of randomness.
