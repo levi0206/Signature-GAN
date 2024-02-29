@@ -12,5 +12,5 @@ Datasets:
 - Rough Bergomi
 - S\&P 500
 
-## update
+## Update Log
 - 29/Feb/2024: Rewrite get_gbm in lib/dataset.py. The numerical results in GBM.ipynb should be slightly different if you rerun the notebook because of randomness.
