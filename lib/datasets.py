@@ -159,8 +159,8 @@ def get_gbm(size, n_lags, d=1, drift=0., scale=0.1, h=1):
     '''
     See Wiki: https://en.wikipedia.org/wiki/Geometric_Brownian_motion#Simulating_sample_paths
     '''
-    x_real = torch.ones(size, n_lags, d)
-    x_real[:, 1:, :] = torch.exp(
-    (drift - scale ** 2 / 2) * h + (scale * np.sqrt(h) * torch.randn(size, n_lags - 1, d)))
-    x_real = x_real.cumprod(1)
-    return x_real
+    S_t = torch.ones(size,n_lags,d)
+    S_t[:,1:,:] = (drift-scale ** 2 / 2) * h + torch.normal(mean=0,std=np.sqrt(h),size=(size,n_lags-1,d))
+    S_t = torch.exp(S_t)
+    S_t = S_t.cumprod(1)
+    return S_t
