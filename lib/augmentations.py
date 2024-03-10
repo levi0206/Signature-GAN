@@ -40,6 +40,56 @@ def sig_normal(sig: torch.Tensor, normalize=False):
         sig = (sig-mu)/sigma
         return sig
     
+def I_visibility_transform(path: torch.Tensor) -> torch.Tensor:
+    '''
+    Implement using definition. \n
+    Return 
+        torch.Tensor of shape (N,L+2,d+1)
+
+    x1_I: zero tensor of shape (N,1,d+1)
+    x2_I: (x1,0) of shape (N,1,d+1)
+    xk_I: (xk,1) of shape (N,1,d+1)
+    
+    Note that for stock csv data, the x0 data is stored at the first element, not the last one.
+    '''
+    x1 = torch.zeros_like(path[:,:1,:])
+    x2 = path[:,:1,:]
+    first_two_rows = torch.cat([x1,x2],dim=1)
+
+    path_add_rows = torch.cat([first_two_rows,path],dim=1)
+
+    appended_zeros = torch.zeros_like(path[:,:2,:1])
+    appended_ones = torch.ones_like(path[:,:,:1])
+    appended = torch.cat([appended_zeros,appended_ones],dim=1)
+
+    output = torch.cat([path_add_rows,appended],dim=-1)
+    return output
+
+def T_visibility_transform(path: torch.Tensor) -> torch.Tensor:
+    '''
+    Implement using definition. \n
+    Return 
+        torch.Tensor of shape (N,L+2,d+1)
+
+    xn+2_I: zero tensor of shape (N,1,d+1)
+    xn+1_I: (xn,0) of shape (N,1,d+1)
+    xk_I: (xk,1) of shape (N,1,d+1)
+    
+    Note that for stock csv data, the xn data is stored at the last element, not the first one.
+    '''
+    xlast = torch.zeros_like(path[:,-1:,:])
+    xlast_ = path[:,-1:,:]
+    last_two_rows = torch.cat([xlast_,xlast],dim=1)
+
+    path_add_rows = torch.cat([path,last_two_rows],dim=1)
+
+    appended_zeros = torch.zeros_like(path[:,-2:,:1])
+    appended_ones = torch.ones_like(path[:,:,:1])
+    appended = torch.cat([appended_ones,appended_zeros],dim=1)
+
+    output = torch.cat([path_add_rows,appended],dim=-1)
+    return output
+
 def get_number_of_channels_after_augmentations(input_dim, augmentations):
     x = torch.zeros(1, 10, input_dim)
     y = apply_augmentations(x, augmentations)
