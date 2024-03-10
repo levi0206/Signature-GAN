@@ -14,3 +14,4 @@ Datasets:
 
 ## Update Log
 - 2024-02-29: Rewrite get_gbm in lib/dataset.py. The numerical results in GBM.ipynb should be slightly different if you rerun the notebook because of randomness.
+- 2024-03-11: Add I_visibility_transform and T_visibility_transform.
