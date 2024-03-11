@@ -1,11 +1,13 @@
 {
-    "batch_size" :128,
-    "epoch" : 300,
+    "batch_size" :1024,
+    "epoch" : 2500, 
     "lr_generator" : 5e-4,
     "lr_discriminator" : 5e-4,
     "augmentations": [
-        {"name":  "AddTime"}
+        {"name": "AddTime"},
+        {"name":  "LeadLag"},
+        {"name":  "VisiTrans", "type": "I"}
     ],
     "device" : "cuda:0",
-    "depth" : 4
+    "depth" : 5
 }
