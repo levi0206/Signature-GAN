@@ -42,7 +42,7 @@ def sig_normal(sig: torch.Tensor, normalize=False):
     
 def I_visibility_transform(path: torch.Tensor) -> torch.Tensor:
     '''
-    Implement using definition. \n
+    Implement using definition from 'Signature features with the visibility transformation'.
     Return 
         torch.Tensor of shape (N,L+2,d+1)
 
@@ -67,7 +67,7 @@ def I_visibility_transform(path: torch.Tensor) -> torch.Tensor:
 
 def T_visibility_transform(path: torch.Tensor) -> torch.Tensor:
     '''
-    Implement using definition. \n
+    Implement using definition from 'Signature features with the visibility transformation'.
     Return 
         torch.Tensor of shape (N,L+2,d+1)
 
@@ -119,6 +119,26 @@ class LeadLag(BaseAugmentation):
         else:
             return lead_lag_transform(x)
 
+@dataclass
+class VisiTrans(BaseAugmentation):
+    type: str = "I"
+
+    def apply(self, x: torch.Tensor):
+        if self.type == "I":
+            return I_visibility_transform(x)
+        elif self.type == "T":
+            return T_visibility_transform(x)
+
+@dataclass
+class Cumsum(BaseAugmentation):
+    '''
+    See 'A Primer on the Signature Method in Machine Learning' 2.1.1
+    '''
+    dim: int = 1
+
+    def apply(self, x: torch.Tensor):
+        return x.cumsum(dim=self.dim)
+
 def apply_augmentations(x: torch.Tensor, augmentations: Tuple) -> torch.Tensor:
     y = x.clone()
     for augmentation in augmentations:
@@ -129,7 +149,7 @@ def augment_path_and_compute_signatures(x: torch.Tensor, config: dict) -> torch.
     y = apply_augmentations(x, config["augmentations"])
     return signatory.signature(y, config["depth"], basepoint=False)
 
-AUGMENTATIONS = {'AddTime': AddTime, 'LeadLag': LeadLag} 
+AUGMENTATIONS = {'AddTime': AddTime, 'LeadLag': LeadLag, 'VisiTrans': VisiTrans, 'CumSum': Cumsum} 
 
 def parse_augmentations(list_of_dicts):
     augmentations = list()
