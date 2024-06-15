@@ -27,8 +27,8 @@ def train_test_split(
 
 def download_stock_price(
         ticker : str,
-        start : str = '2018-01-01',
-        end : str = '2023-12-31',
+        start : str = '2012-01-01',
+        end : str = '2025-01-01',
         interval: str = '1d',
 ):  
     '''
@@ -96,7 +96,7 @@ def get_stock_price(data_config):
         print(f'Original data: {os.path.basename(csv_file_name)}, shape {df.shape}')
         dataset = df[df.columns[data_config['column']]].to_numpy(dtype='float')
         dataset = torch.FloatTensor(dataset).unsqueeze(dim=1)
-        print(dataset.shape)
+        # print(dataset[:5])
         dataset = rolling_window(dataset, data_config['window_size'])
         dataset = transfer_percentage(dataset)
 

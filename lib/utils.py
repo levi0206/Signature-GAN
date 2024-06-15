@@ -69,6 +69,9 @@ def save_obj(obj: object, filepath: str):
         return 0
     else:
         raise NotImplementedError()
+    with open(filepath, 'wb') as f:
+        saver(obj, f)
+    return 0
 
 # Probably no need    
 def rolling_period_resample(dataset, period, n_lags):
