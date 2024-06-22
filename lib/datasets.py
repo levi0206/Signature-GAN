@@ -50,6 +50,7 @@ def rolling_window(x: torch.Tensor, window_size: int):
     for t in range(x.shape[0] - window_size + 1):
         window = x[t:t + window_size, :]
         windowed_data.append(window)
+    print("Tensor shape after rolling:",torch.stack(windowed_data, dim=0).shape)
     return torch.stack(windowed_data, dim=0)
 
 def transfer_percentage(x):
